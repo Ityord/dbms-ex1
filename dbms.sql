@@ -91,4 +91,145 @@ WHERE NOT EXISTS (
 25. SELECT dept_name, AVG(tot_cred) AS avg_credits
 FROM student
 GROUP BY dept_name;
+26. SELECT DISTINCT s.name
+FROM student s
+JOIN takes t ON s.ID = t.ID
+JOIN teaches te ON t.course_id = te.course_id 
+                AND t.sec_id = te.sec_id 
+                AND t.semester = te.semester 
+                AND t.year = te.year
+JOIN instructor i ON te.ID = i.ID
+WHERE i.name = 'Einstein';
+27. SELECT course_id, sec_id, semester, year, room_number, time_slot_id
+FROM section
+WHERE building = 'Watson';
+28. SELECT SUM(budget) AS total_budget
+FROM department;
+29. SELECT DISTINCT s.name
+FROM student s
+JOIN takes t ON s.ID = t.ID
+WHERE t.grade = 'B';
+30. SELECT i.ID, i.name
+FROM instructor i
+LEFT JOIN teaches t ON i.ID = t.ID
+WHERE t.ID IS NULL;
+31. SELECT s.name
+FROM student s
+JOIN takes t ON s.ID = t.ID
+JOIN course c ON t.course_id = c.course_id
+WHERE c.dept_name = 'Computer Science'
+GROUP BY s.name
+HAVING COUNT(DISTINCT c.course_id) = (
+    SELECT COUNT(DISTINCT course_id)
+    FROM course
+    WHERE dept_name = 'Computer Science'
+);
+32. SELECT i.name
+FROM instructor i
+WHERE (
+    SELECT COUNT(DISTINCT c.course_id)
+    FROM course c
+    WHERE c.dept_name = i.dept_name
+) = (
+    SELECT COUNT(DISTINCT t.course_id)
+    FROM teaches t
+    WHERE t.ID = i.ID
+    AND t.course_id IN (
+        SELECT course_id
+        FROM course
+        WHERE dept_name = i.dept_name
+    )
+);
+33. SELECT s.name
+FROM student s
+WHERE (
+    SELECT COUNT(DISTINCT i.ID)
+    FROM instructor i
+    WHERE i.dept_name = s.dept_name
+) = (
+    SELECT COUNT(DISTINCT t.ID)
+    FROM takes tk
+    JOIN teaches t ON tk.course_id = t.course_id
+        AND tk.sec_id = t.sec_id
+        AND tk.semester = t.semester
+        AND tk.year = t.year
+    WHERE tk.ID = s.ID
+    AND t.ID IN (
+        SELECT ID 
+        FROM instructor 
+        WHERE dept_name = s.dept_name
+    )
+);
+34. WITH PrereqCounts AS (
+    SELECT course_id, COUNT(prereq_id) AS num_prereqs
+    FROM prereq
+    GROUP BY course_id
+)
+SELECT course_id, num_prereqs
+FROM PrereqCounts
+WHERE num_prereqs = (SELECT MAX(num_prereqs) FROM PrereqCounts);
+35. SELECT s.name
+FROM student s
+JOIN (
+    SELECT ID, course_id
+    FROM takes
+    GROUP BY ID, course_id
+    HAVING COUNT(*) > 1
+) retakes ON s.ID = retakes.ID
+GROUP BY s.name;
+36. SELECT i.name
+FROM instructor i
+WHERE 4 = (
+    SELECT COUNT(DISTINCT t.semester)
+    FROM teaches t
+    WHERE t.ID = i.ID
+      AND t.year = 2023
+      AND t.semester IN ('Fall', 'Winter', 'Spring', 'Summer')
+);
+37. SELECT d.dept_name
+FROM department d
+JOIN instructor i ON d.dept_name = i.dept_name
+GROUP BY d.dept_name
+HAVING AVG(i.salary) > (SELECT AVG(salary) FROM instructor);
+38. SELECT s.name
+FROM student s
+WHERE (
+    SELECT COUNT(DISTINCT sec.time_slot_id)
+    FROM takes t
+    JOIN section sec 
+      ON t.course_id = sec.course_id 
+     AND t.sec_id = sec.sec_id 
+     AND t.semester = sec.semester 
+     AND t.year = sec.year
+    WHERE t.ID = s.ID
+) = (
+    SELECT COUNT(DISTINCT time_slot_id)
+    FROM time_slot
+);
+39. SELECT c.course_id, c.title
+FROM course c
+WHERE c.course_id IN (
+    SELECT prereq_id
+    FROM prereq
+)
+AND c.course_id NOT IN (
+    SELECT course_id
+    FROM prereq
+);
+40. WITH student_semester_counts AS (
+    SELECT t.ID, t.semester, t.year, COUNT(*) AS course_count
+    FROM takes t
+    GROUP BY t.ID, t.semester, t.year
+),
+max_courses AS (
+    SELECT MAX(course_count) AS max_count
+    FROM student_semester_counts
+)
+SELECT s.name, ssc.semester, ssc.year, ssc.course_count
+FROM student_semester_counts ssc
+JOIN max_courses m ON ssc.course_count = m.max_count
+JOIN student s ON s.ID = ssc.ID;
+
+
+
 
