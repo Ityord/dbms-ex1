@@ -229,6 +229,132 @@ SELECT s.name, ssc.semester, ssc.year, ssc.course_count
 FROM student_semester_counts ssc
 JOIN max_courses m ON ssc.course_count = m.max_count
 JOIN student s ON s.ID = ssc.ID;
+41. WITH dept_count AS (
+    SELECT COUNT(*) AS total_departments
+    FROM department
+),
+student_dept_count AS (
+    SELECT t.ID, COUNT(DISTINCT c.dept_name) AS dept_count
+    FROM takes t
+    JOIN course c ON t.course_id = c.course_id
+    GROUP BY t.ID
+)
+SELECT s.name
+FROM student_dept_count sdc
+JOIN dept_count dc ON sdc.dept_count = dc.total_departments
+JOIN student s ON s.ID = sdc.ID;
+42. SELECT DISTINCT i.name
+FROM instructor i
+WHERE EXISTS (
+    SELECT 1
+    FROM teaches t1
+    JOIN teaches t2 ON t1.ID = t2.ID
+                  AND t1.course_id = t2.course_id
+                  AND (t1.semester <> t2.semester OR t1.year <> t2.year)
+    WHERE t1.ID = i.ID
+);
+43. SELECT c.course_id, c.title, COUNT(*) AS num_courses
+FROM course c
+JOIN prereq p ON c.course_id = p.prereq_id
+GROUP BY c.course_id, c.title
+HAVING COUNT(*) > 3;
+44. SELECT d.dept_name, SUM(s.tot_cred) AS total_student_credits, d.budget
+FROM department d
+JOIN student s ON d.dept_name = s.dept_name
+GROUP BY d.dept_name, d.budget
+HAVING SUM(s.tot_cred) > d.budget;
+45. SELECT s.name
+FROM student s
+WHERE s.dept_name IS NOT NULL
+  AND (
+    SELECT COUNT(DISTINCT i.ID)
+    FROM instructor i
+    WHERE i.dept_name = s.dept_name
+  ) = (
+    SELECT COUNT(DISTINCT t.ID)
+    FROM takes tk
+    JOIN teaches t 
+      ON tk.course_id = t.course_id 
+      AND tk.sec_id = t.sec_id 
+      AND tk.semester = t.semester 
+      AND tk.year = t.year
+    WHERE tk.ID = s.ID
+      AND t.ID IN (
+        SELECT ID 
+        FROM instructor 
+        WHERE dept_name = s.dept_name
+      )
+  );
+46. SELECT c.course_id, c.title
+FROM course c
+WHERE c.course_id IN (
+    SELECT course_id
+    FROM section
+    GROUP BY course_id
+    HAVING COUNT(DISTINCT semester) = 4
+);
+47. WITH student_course_counts AS (
+    SELECT ID, COUNT(*) AS course_count
+    FROM takes
+    GROUP BY ID
+)
+SELECT s.name, scc.course_count
+FROM student_course_counts scc
+JOIN student s ON s.ID = scc.ID
+WHERE scc.course_count = (
+    SELECT MAX(course_count)
+    FROM student_course_counts
+);
+48. WITH total_buildings AS (
+    SELECT COUNT(DISTINCT building) AS total_count
+    FROM section
+),
+instructor_buildings AS (
+    SELECT t.ID, COUNT(DISTINCT s.building) AS building_count
+    FROM teaches t
+    JOIN section s ON t.course_id = s.course_id
+                  AND t.sec_id = s.sec_id
+                  AND t.semester = s.semester
+                  AND t.year = s.year
+    GROUP BY t.ID
+)
+SELECT i.name
+FROM instructor i
+JOIN instructor_buildings ib ON i.ID = ib.ID
+JOIN total_buildings tb ON ib.building_count = tb.total_count;
+49. SELECT DISTINCT s.name
+FROM student s
+JOIN takes t1 ON s.ID = t1.ID
+JOIN takes t2 ON s.ID = t2.ID
+    AND (t1.course_id <> t2.course_id OR t1.sec_id <> t2.sec_id)
+    AND t1.semester = t2.semester
+    AND t1.year = t2.year
+JOIN section sec1 ON t1.course_id = sec1.course_id 
+    AND t1.sec_id = sec1.sec_id 
+    AND t1.semester = sec1.semester 
+    AND t1.year = sec1.year
+JOIN section sec2 ON t2.course_id = sec2.course_id 
+    AND t2.sec_id = sec2.sec_id 
+    AND t2.semester = sec2.semester 
+    AND t2.year = sec2.year
+JOIN time_slot ts1 ON sec1.time_slot_id = ts1.time_slot_id
+JOIN time_slot ts2 ON sec2.time_slot_id = ts2.time_slot_id
+WHERE ts1.day = ts2.day
+  AND ((ts1.start_hr * 60 + ts1.start_min) < (ts2.end_hr * 60 + ts2.end_min))
+  AND ((ts2.start_hr * 60 + ts2.start_min) < (ts1.end_hr * 60 + ts1.end_min));
+50. WITH course_enrollments AS (
+    SELECT t.course_id, COUNT(*) AS enrollment
+    FROM takes t
+    GROUP BY t.course_id
+),
+max_enrollment AS (
+    SELECT MAX(enrollment) AS max_enr
+    FROM course_enrollments
+)
+SELECT ce.course_id, c.title, ce.enrollment
+FROM course_enrollments ce
+JOIN course c ON ce.course_id = c.course_id
+JOIN max_enrollment me ON ce.enrollment = me.max_enr;
 
 
 
